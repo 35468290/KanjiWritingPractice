@@ -4,142 +4,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Kanji Writing Practice</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: sans-serif;
-    }
-
-    body {
-      background: #111;
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 40px 20px;
-      min-height: 100vh;
-    }
-
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      width: 100%;
-      max-width: 800px;
-      margin-bottom: 30px;
-    }
-
-    .guide-toggle {
-      background: #222;
-      padding: 10px 20px;
-      border-radius: 8px;
-      cursor: pointer;
-      border: 1px solid #444;
-    }
-
-    .kanji-box {
-      font-size: 120px;
-      margin: 20px 0;
-      user-select: none;
-    }
-
-    .stats {
-      font-size: 20px;
-      margin: 10px 0;
-    }
-
-    .buttons {
-      margin-top: 30px;
-      display: flex;
-      gap: 15px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-
-    button {
-      background: #222;
-      border: 1px solid #444;
-      color: white;
-      padding: 12px 24px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 16px;
-      transition: background 0.2s;
-    }
-
-    button:hover {
-      background: #444;
-    }
-
-    .next-button {
-      margin-top: 20px;
-      background-color: #2a2a2a;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <div class="header">
+  <div class="top-bar">
     <div class="guide-toggle" onclick="toggleGuide()">GUIDE: <span id="guideStatus">ON</span></div>
   </div>
 
-  <div class="kanji-box" id="kanjiDisplay">人</div>
+  <div class="kanji" id="kanji">人</div>
+  <div class="stats" id="stats">人 - 3</div>
 
-  <div class="stats" id="kanjiStats">人 - 1 / 1</div>
-
-  <button class="next-button" onclick="nextKanji()">Next Kanji</button>
-
-  <div class="buttons">
-    <button onclick="deleteAll()">Delete All</button>
-    <button onclick="showStats()">Statistics</button>
-    <button onclick="goBack()">Back</button>
+  <div class="button-row">
+    <button class="action-button" onclick="deleteAll()">Delete All</button>
+    <button class="action-button" onclick="showStats()">Statistics</button>
+    <button class="action-button" onclick="goBack()">Back</button>
   </div>
 
-  <script>
-    const kanjiList = ["人", "日", "水", "木", "山", "火", "川", "金", "大", "小"];
-    let currentIndex = 0;
-    let guideOn = true;
-    let totalViewed = 1;
-
-    const kanjiDisplay = document.getElementById("kanjiDisplay");
-    const guideStatus = document.getElementById("guideStatus");
-    const statsDisplay = document.getElementById("kanjiStats");
-
-    function toggleGuide() {
-      guideOn = !guideOn;
-      guideStatus.textContent = guideOn ? "ON" : "OFF";
-    }
-
-    function nextKanji() {
-      currentIndex = (currentIndex + 1) % kanjiList.length;
-      totalViewed++;
-      updateDisplay();
-    }
-
-    function updateDisplay() {
-      kanjiDisplay.textContent = kanjiList[currentIndex];
-      statsDisplay.textContent = `${kanjiList[currentIndex]} - ${currentIndex + 1} / ${totalViewed}`;
-    }
-
-    function deleteAll() {
-      currentIndex = 0;
-      totalViewed = 1;
-      updateDisplay();
-    }
-
-    function showStats() {
-      alert(`You've viewed ${totalViewed} kanji.`);
-    }
-
-    function goBack() {
-      alert("Going back (not implemented).");
-    }
-
-    // Initialize
-    updateDisplay();
-  </script>
-
+  <script src="script.js"></script>
 </body>
 </html>

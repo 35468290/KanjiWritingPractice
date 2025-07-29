@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .topnav {
+      overflow-x: auto;
+      white-space: nowrap;
+      background-color: #00B0F0;
+    }
+
+    .topnav a {
+      display: inline-block;
+      color: #f2f2f2;
+      text-align: center;
+      padding: 14px 16px;
+      text-decoration: none;
+      font-size: 17px;
+    }
+
+    .topnav a:hover {
+      background-color: #ddd;
+      color: black;
+    }
+
+    .topnav a.active {
+      background-color: #0070C0;
+      color: white;
+    }
+
+    .kanji-section {
+      margin: 10px;
+    }
+
+    .kanji-toggle {
+      padding: 10px;
+      background-color: #f2f2f2;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      margin-bottom: 5px;
+    }
+
+    #kanji-container {
+      display: none;
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .kanji-button {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      cursor: pointer;
+      width: 40px;
+      text-align: center;
+    }
+
+    .kanji-button:hover {
+      background-color: #f0f0f0;
+    }
+
+    .kanji-button .count {
+      font-size: 12px;
+      color: #666;
+      margin-left: 5px;
+    }
+
+    .card {
+      position: relative;
+      width: 95vw;
+      max-width: 900px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      padding: 10px;
+      margin: 10px auto;
+    }
+
+    .card .close {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .card .kanji {
+      font-size: 48px;
+      text-align: center;
+      font-family: "Yu Mincho", "Noto Serif JP", "Hiragino Mincho Pro", "MS Mincho", serif;
+    }
+
+    .card .stroke-image {
+      width: 100%;
+      max-height: 100px;
+      object-fit: contain;
+      margin: 5px 0;
+    }
+
+    .grid-wrapper {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .canvas-container {
+      width: 100px;
+      height: 100px;
+      border: 1px solid #ccc;
+      position: relative;
+      box-sizing: border-box;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .controls {
+      padding: 10px;
+    }
+
+    #search {
+      padding: 5px;
+      font-size: 16px;
+      width: 50%;
+    }
+
+    #deleteAll, #showStats {
+      padding: 6px 12px;
+      margin: 5px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="topnav" id="jlptNav">
+  <a href="N5.html" class="active">N5</a>
+  <a href="N4.html">N4</a>
+  <a href="N3.html">N3</a>
+  <a href="N2.html">N2</a>
+  <a href="N1.html">N1</a>
+</div>
+
+<div class="controls">
+  <input type="text" id="search" placeholder="Search kanji...">
+  <button id="deleteAll">Delete All</button>
+  <button id="showStats">Statistics</button>
+</div>
+
+<div class="kanji-section">
+  <div id="kanji-container"></div>
+</div>
+
+<div id="card-container"></div>
+
+<script>
+const kanjiCards = {};
+
+const n5KanjiList = [
+  '人', '一', '日', '大', '年', '出', '本', '中', '子', '見',
+  '国', '上', '分', '生', '行', '二', '間', '時', '気', '十',
+  '女', '三', '前', '入', '小', '後', '長', '下', '学', '月',
+  '何', '来', '話', '山', '高', '今', '書', '五', '名', '金',
+  '男', '外', '四', '先', '川', '東', '聞', '語', '九', '食',
+  '八', '水', '天', '木', '六', '万', '白', '七', '円', '電',
+  '父', '北', '車', '母', '半', '百', '土', '西', '読', '千',
+  '校', '右', '南', '左', '友', '火', '毎', '雨', '休', '午'
+];
+
+const kanjiContainer = document.getElementById('kanji-container');
+const cardContainer = document.getElementById('card-container');
+
+n5KanjiList.forEach((kanji) => {
+  const button = document.createElement('div');
+  button.className = 'kanji-button';
+  button.innerHTML = `${kanji}<span class="count">0</span>`;
+  button.onclick = () => handleKanjiClick(kanji);
+  kanjiContainer.appendChild(button);
+  kanjiCards[kanji] = { count: 0, card: null, gridWrapper: null };
+});
+
+function toggleKanjiList() {
+  kanjiContainer.style.display = kanjiContainer.style.display === 'none' ? 'flex' : 'none';
+}
+
+function handleKanjiClick(kanji) {
+  if (!kanjiCards[kanji].card) {
+    createCard(kanji);
+  } else {
+    addGridToCard(kanji);
+  }
+  kanjiCards[kanji].count++;
+  updateCount(kanji);
+}
+
+function updateCount(kanji) {
+  const button = Array.from(kanjiContainer.children).find(el => el.textContent.startsWith(kanji));
+  const countSpan = button.querySelector('.count');
+  countSpan.textContent = kanjiCards[kanji].count;
+}
+
+function createCard(kanji) {
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  card.innerHTML = `
+    <span class="close">&times;</span>
+    <div class="kanji">${kanji}</div>
+    <img class="stroke-image" src="strokes/${kanji}.png" alt="">
+  `;
+
+  const gridWrapper = document.createElement('div');
+  gridWrapper.className = 'grid-wrapper';
+  card.appendChild(gridWrapper);
+  kanjiCards[kanji].gridWrapper = gridWrapper;
+
+  card.querySelector('.close').onclick = () => {
+    card.remove();
+    kanjiCards[kanji] = { count: 0, card: null, gridWrapper: null };
+    updateCount(kanji);
+  };
+
+  cardContainer.appendChild(card);
+  kanjiCards[kanji].card = card;
+  addGridToCard(kanji);
+}
+
+function addGridToCard(kanji) {
+  const wrapper = kanjiCards[kanji].gridWrapper;
+  const canvasContainer = document.createElement('div');
+  canvasContainer.className = 'canvas-container';
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 100;
+  canvas.height = 100;
+  canvasContainer.appendChild(canvas);
+  wrapper.appendChild(canvasContainer);
+
+  const ctx = canvas.getContext('2d');
+  drawGuide(ctx);
+
+  canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    ctx.beginPath();
+    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 2;
+    function draw(e) {
+      ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+      ctx.stroke();
+    }
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', () => {
+      canvas.removeEventListener('mousemove', draw);
+    }, { once: true });
+  });
+}
+
+function drawGuide(ctx) {
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#ccc';
+  ctx.setLineDash([5, 3]);
+  for (let i = 1; i < 2; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, i * 50);
+    ctx.lineTo(100, i * 50);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(i * 50, 0);
+    ctx.lineTo(i * 50, 100);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+}
+
+const searchInput = document.getElementById('search');
+searchInput.addEventListener('input', () => {
+  const val = searchInput.value.trim();
+  const card = kanjiCards[val]?.card;
+  if (card) card.scrollIntoView({ behavior: 'smooth' });
+});
+
+const deleteBtn = document.getElementById('deleteAll');
+deleteBtn.onclick = () => {
+  if (confirm('Are you sure you wanna delete all cards?')) {
+    cardContainer.innerHTML = '';
+    Object.keys(kanjiCards).forEach(k => {
+      kanjiCards[k].count = 0;
+      kanjiCards[k].card = null;
+      kanjiCards[k].gridWrapper = null;
+      updateCount(k);
+    });
+  }
+};
+
+const statsBtn = document.getElementById('showStats');
+statsBtn.onclick = () => {
+  const stats = Object.entries(kanjiCards)
+    .filter(([_, val]) => val.count > 0)
+    .map(([kanji, val]) => `${kanji}: ${val.count} grid(s)`).join('\n');
+  alert('Kanji Statistics:\n' + stats);
+};
+</script>
+
+</body>
+</html>

@@ -115,6 +115,7 @@
     canvas {
       width: 100%;
       height: 100%;
+      touch-action: none; /* prevents finger drawing */
     }
 
     .controls {
@@ -131,6 +132,13 @@
       padding: 6px 12px;
       margin: 5px;
       font-size: 14px;
+    }
+
+    .canvas-controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 5px;
     }
   </style>
 </head>
@@ -158,9 +166,9 @@
 
 <script>
 const kanjiCards = {};
+const wrapperCanvasMap = new Map();
 
-const n4KanjiList = [
-  '言','手','自','者','事','思','会','家','的','方','地','目','場','代','私','立','物','田','体','動','社','知','理','同','心','発','作','新','世','度','明','力','意','用','主','通','文','屋','業','持','道','身','不','口','多','野','考','開','教','近','以','問','正','真','味','界','無','少','海','切','重','集','員','公','画','死','安','親','強','使','朝','題','仕','京','足','品','着','別','音','元','特','風','夜','空','有','起','運','料','楽','色','帰','歩','悪','広','店','町','住','売','待','古','始','終','計','院','送','族','映','買','病','早','質','台','室','可','建','転','医','止','字','工','急','図','黒','花','英','走','青','答','紙','歌','注','赤','春','館','旅','験','写','去','研','飲','肉','服','銀','茶','究','洋','兄','秋','堂','週','習','試','夏','弟','鳥','犬','夕','魚','借','飯','駅','昼','冬','姉','曜','漢','牛','妹','貸','勉'
+const n4KanjiList = [ '言','手','自','者','事','思','会','家','的','方','地','目','場','代','私','立','物','田','体','動','社','知','理','同','心','発','作','新','世','度','明','力','意','用','主','通','文','屋','業','持','道','身','不','口','多','野','考','開','教','近','以','問','正','真','味','界','無','少','海','切','重','集','員','公','画','死','安','親','強','使','朝','題','仕','京','足','品','着','別','音','元','特','風','夜','空','有','起','運','料','楽','色','帰','歩','悪','広','店','町','住','売','待','古','始','終','計','院','送','族','映','買','病','早','質','台','室','可','建','転','医','止','字','工','急','図','黒','花','英','走','青','答','紙','歌','注','赤','春','館','旅','験','写','去','研','飲','肉','服','銀','茶','究','洋','兄','秋','堂','週','習','試','夏','弟','鳥','犬','夕','魚','借','飯','駅','昼','冬','姉','曜','漢','牛','妹','貸','勉'
 ];
 
 const kanjiContainer = document.getElementById('kanji-container');
@@ -194,16 +202,31 @@ function updateCount(kanji) {
 function createCard(kanji) {
   const card = document.createElement('div');
   card.className = 'card';
-
   card.innerHTML = `
     <span class="close">&times;</span>
     <div class="kanji">${kanji}</div>
     <img class="stroke-image" src="strokes/${kanji}.png" alt="">
   `;
 
+  const canvasControls = document.createElement('div');
+  canvasControls.className = 'canvas-controls';
+
+  const colorPicker = document.createElement('input');
+  colorPicker.type = 'color';
+  colorPicker.value = '#000000';
+
+  const undoBtn = document.createElement('button');
+  undoBtn.textContent = 'Undo';
+
+  canvasControls.appendChild(colorPicker);
+  canvasControls.appendChild(undoBtn);
+
   const gridWrapper = document.createElement('div');
   gridWrapper.className = 'grid-wrapper';
+
+  card.appendChild(canvasControls);
   card.appendChild(gridWrapper);
+
   kanjiCards[kanji].gridWrapper = gridWrapper;
 
   card.querySelector('.close').onclick = () => {
@@ -214,10 +237,20 @@ function createCard(kanji) {
 
   cardContainer.appendChild(card);
   kanjiCards[kanji].card = card;
-  addGridToCard(kanji);
+
+  wrapperCanvasMap.set(gridWrapper, []);
+  addGridToCard(kanji, colorPicker, undoBtn);
+  undoBtn.onclick = () => {
+    const all = wrapperCanvasMap.get(gridWrapper);
+    if (!all?.length) return;
+    const { canvas, strokes } = all[all.length - 1];
+    if (!strokes.length) return;
+    strokes.pop();
+    redrawCanvas(canvas, strokes);
+  };
 }
 
-function addGridToCard(kanji) {
+function addGridToCard(kanji, colorPicker, undoBtn) {
   const wrapper = kanjiCards[kanji].gridWrapper;
   const canvasContainer = document.createElement('div');
   canvasContainer.className = 'canvas-container';
@@ -231,21 +264,62 @@ function addGridToCard(kanji) {
   const ctx = canvas.getContext('2d');
   drawGuide(ctx);
 
-  canvas.addEventListener('mousedown', (e) => {
+  const strokes = [];
+  const currentStroke = [];
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'pen' && e.pointerType !== 'mouse') return;
+
     const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
     ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-    ctx.strokeStyle = 'black';
+    ctx.moveTo(x, y);
+    ctx.strokeStyle = colorPicker.value;
     ctx.lineWidth = 2;
+
+    currentStroke.length = 0;
+    currentStroke.push({ x, y });
+
     function draw(e) {
-      ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      ctx.lineTo(x, y);
       ctx.stroke();
+      currentStroke.push({ x, y });
     }
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', () => {
-      canvas.removeEventListener('mousemove', draw);
-    }, { once: true });
+
+    function stopDrawing() {
+      strokes.push({ path: [...currentStroke], color: colorPicker.value });
+      canvas.removeEventListener('pointermove', draw);
+      canvas.removeEventListener('pointerup', stopDrawing);
+      canvas.removeEventListener('pointercancel', stopDrawing);
+    }
+
+    canvas.addEventListener('pointermove', draw);
+    canvas.addEventListener('pointerup', stopDrawing);
+    canvas.addEventListener('pointercancel', stopDrawing);
   });
+
+  wrapperCanvasMap.get(wrapper).push({ canvas, strokes });
+}
+
+function redrawCanvas(canvas, strokes) {
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawGuide(ctx);
+  for (const stroke of strokes) {
+    if (stroke.path.length === 0) continue;
+    ctx.beginPath();
+    ctx.moveTo(stroke.path[0].x, stroke.path[0].y);
+    for (let i = 1; i < stroke.path.length; i++) {
+      ctx.lineTo(stroke.path[i].x, stroke.path[i].y);
+    }
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
 }
 
 function drawGuide(ctx) {
@@ -265,15 +339,13 @@ function drawGuide(ctx) {
   ctx.setLineDash([]);
 }
 
-const searchInput = document.getElementById('search');
-searchInput.addEventListener('input', () => {
-  const val = searchInput.value.trim();
+document.getElementById('search').addEventListener('input', () => {
+  const val = search.value.trim();
   const card = kanjiCards[val]?.card;
   if (card) card.scrollIntoView({ behavior: 'smooth' });
 });
 
-const deleteBtn = document.getElementById('deleteAll');
-deleteBtn.onclick = () => {
+document.getElementById('deleteAll').onclick = () => {
   if (confirm('Are you sure you wanna delete all cards?')) {
     cardContainer.innerHTML = '';
     Object.keys(kanjiCards).forEach(k => {
@@ -285,8 +357,7 @@ deleteBtn.onclick = () => {
   }
 };
 
-const statsBtn = document.getElementById('showStats');
-statsBtn.onclick = () => {
+document.getElementById('showStats').onclick = () => {
   const stats = Object.entries(kanjiCards)
     .filter(([_, val]) => val.count > 0)
     .map(([kanji, val]) => `${kanji}: ${val.count} grid(s)`).join('\n');
@@ -296,4 +367,3 @@ statsBtn.onclick = () => {
 
 </body>
 </html>
-

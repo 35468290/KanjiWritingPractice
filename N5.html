@@ -38,14 +38,6 @@
       margin: 10px;
     }
 
-    .kanji-toggle {
-      padding: 10px;
-      background-color: #f2f2f2;
-      border: 1px solid #ccc;
-      cursor: pointer;
-      margin-bottom: 5px;
-    }
-
     #kanji-container {
       display: flex;
       flex-wrap: wrap;
@@ -143,6 +135,24 @@
       margin: 5px;
       font-size: 14px;
     }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+    }
+
+    .toolbar input[type="color"] {
+      width: 40px;
+      height: 30px;
+      border: none;
+      padding: 0;
+    }
+
+    .toolbar button {
+      padding: 5px 10px;
+    }
   </style>
 </head>
 <body>
@@ -159,6 +169,9 @@
   <input type="text" id="search" placeholder="Search kanji...">
   <button id="deleteAll">Delete All</button>
   <button id="showStats">Statistics</button>
+  <div class="toolbar">
+    <label>Pen Color: <input type="color" id="colorPicker" value="#000000"></label>
+  </div>
 </div>
 
 <div class="kanji-section">
@@ -169,6 +182,7 @@
 
 <script>
 const kanjiCards = {};
+const strokeHistories = new Map();
 
 const n5KanjiList = [
   '人', '一', '日', '大', '年', '出', '本', '中', '子', '見',
@@ -180,6 +194,7 @@ const n5KanjiList = [
   '父', '北', '車', '母', '半', '百', '土', '西', '読', '千',
   '校', '右', '南', '左', '友', '火', '毎', '雨', '休', '午'
 ];
+
 
 const kanjiContainer = document.getElementById('kanji-container');
 const cardContainer = document.getElementById('card-container');
@@ -212,13 +227,11 @@ function updateCount(kanji) {
 function createCard(kanji) {
   const card = document.createElement('div');
   card.className = 'card';
-
   card.innerHTML = `
     <span class="close">&times;</span>
     <div class="kanji">${kanji}</div>
     <img class="stroke-image" src="strokes/${kanji}.png" alt="">
   `;
-
   const gridWrapper = document.createElement('div');
   gridWrapper.className = 'grid-wrapper';
   card.appendChild(gridWrapper);
@@ -249,29 +262,56 @@ function addGridToCard(kanji) {
   const ctx = canvas.getContext('2d');
   drawGuide(ctx);
 
+  const strokes = [];
+  strokeHistories.set(canvas, strokes);
+
+  const colorPicker = document.getElementById('colorPicker');
+
   canvas.addEventListener('pointerdown', (e) => {
-    if (e.pointerType !== 'pen' && e.pointerType !== 'mouse') return; // only stylus or mouse
+    if (e.pointerType !== 'pen' && e.pointerType !== 'mouse') return;
 
     const rect = canvas.getBoundingClientRect();
     ctx.beginPath();
     ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-    ctx.strokeStyle = 'black';
+    ctx.strokeStyle = colorPicker.value;
     ctx.lineWidth = 2;
+
+    const currentStroke = [{ x: e.clientX - rect.left, y: e.clientY - rect.top }];
 
     function draw(e) {
       ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
       ctx.stroke();
+      currentStroke.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
     }
 
     function stopDrawing() {
       canvas.removeEventListener('pointermove', draw);
       canvas.removeEventListener('pointerup', stopDrawing);
       canvas.removeEventListener('pointercancel', stopDrawing);
+      strokes.push(currentStroke);
     }
 
     canvas.addEventListener('pointermove', draw);
     canvas.addEventListener('pointerup', stopDrawing);
     canvas.addEventListener('pointercancel', stopDrawing);
+  });
+
+  canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const strokes = strokeHistories.get(canvas);
+    if (strokes && strokes.length > 0) {
+      strokes.pop();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGuide(ctx);
+      for (const stroke of strokes) {
+        ctx.beginPath();
+        ctx.moveTo(stroke[0].x, stroke[0].y);
+        for (let i = 1; i < stroke.length; i++) {
+          ctx.lineTo(stroke[i].x, stroke[i].y);
+        }
+        ctx.stroke();
+      }
+    }
   });
 }
 
@@ -318,6 +358,5 @@ document.getElementById('showStats').onclick = () => {
   alert('Kanji Statistics:\n' + stats);
 };
 </script>
-
 </body>
 </html>
